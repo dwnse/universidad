@@ -1,0 +1,1 @@
+import{E as s,A as a}from"./index-DiP0FMJb.js";const i={async init(){await s().fetchProfile()},async handleLogin(t,o){const r=s(),{error:e}=await a.auth.signInWithPassword({email:t,password:o});if(e)throw e;await r.fetchProfile()},async handleLogout(){await s().signOut()},isAuthenticated(){return s().isAuthenticated},getUserRole(){return s().userRole}};export{i as A};
