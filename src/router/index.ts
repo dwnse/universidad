@@ -23,19 +23,19 @@ const routes: RouteRecordRaw[] = [
         path: 'admin/users',
         name: 'admin-users',
         component: () => import('@/views/pages/UserListPage.vue'),
-        meta: { roles: ['ADMIN'] }
+        meta: { roles: ['ADMINISTRADOR'] }
       },
       {
         path: 'admin/careers',
         name: 'admin-careers',
         component: () => import('@/views/pages/CareerListPage.vue'),
-        meta: { roles: ['ADMIN'] }
+        meta: { roles: ['ADMINISTRADOR'] }
       },
       {
         path: 'student/enrollment',
         name: 'student-enrollment',
         component: () => import('@/views/pages/EnrollmentPage.vue'),
-        meta: { roles: ['ESTUDIANTE', 'ADMIN'] }
+        meta: { roles: ['ESTUDIANTE', 'ADMINISTRADOR'] }
       },
       {
         path: 'docente/grades',
@@ -55,13 +55,9 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   
-  if (authStore.loading) {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      await authStore.fetchProfile()
-    } else {
-      authStore.loading = false
-    }
+  if (!authStore.authReady) {
+    console.log('Initializing auth from router...')
+    await authStore.fetchProfile()
   }
 
   const isAuthenticated = authStore.isAuthenticated
@@ -70,11 +66,14 @@ router.beforeEach(async (to, from, next) => {
   const isPublic = to.matched.some(record => record.meta.public)
   const allowedRoles = to.meta.roles as string[] | undefined
 
+  console.log(`Route: ${to.name as string}, Auth: ${isAuthenticated}, Role: ${userRole}`)
+
   if (requiresAuth && !isAuthenticated) {
     next({ name: 'login' })
   } else if (isPublic && isAuthenticated) {
     next({ name: 'dashboard' })
   } else if (allowedRoles && !allowedRoles.includes(userRole || '')) {
+    console.warn(`Access denied to ${to.name as string} for role ${userRole}`)
     next({ name: 'dashboard' })
   } else {
     next()

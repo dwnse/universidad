@@ -8,7 +8,8 @@ import {
   Save, 
   ChevronLeft,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
@@ -16,10 +17,15 @@ const authStore = useAuthStore()
 const docenteController = useDocenteController()
 const toast = useToast()
 const selectedParallel = ref<any>(null)
+const docenteId = ref<string | null>(null)
 
 onMounted(async () => {
   if (authStore.profile?.id) {
-    await docenteController.fetchAssignedParallels(authStore.profile.id)
+    const dId = await docenteController.fetchDocenteId(authStore.profile.id)
+    if (dId) {
+      docenteId.value = dId
+      await docenteController.fetchAssignedParallels(dId)
+    }
   }
 })
 
@@ -31,17 +37,23 @@ watch(selectedParallel, async (newVal) => {
 
 const saveStudentGrades = async (student: any) => {
   const grades = {
-    partial_1: student.grades?.[0]?.partial_1 || 0,
-    partial_2: student.grades?.[0]?.partial_2 || 0,
-    final_exam: student.grades?.[0]?.final_exam || 0
+    nota_primer_parcial: Number(student.nota_primer_parcial) || 0,
+    nota_segundo_parcial: Number(student.nota_segundo_parcial) || 0,
+    nota_examen_final: Number(student.nota_examen_final) || 0
   }
   try {
     await docenteController.saveGrade(student.id, grades)
+    // Refetch to get updated average from DB or we can calculate locally
     await docenteController.fetchParallelStudents(selectedParallel.value.id)
-    toast.success('Calificación guardada')
+    toast.success('Calificación guardada para ' + student.student_name)
   } catch (error: any) {
     toast.error(error.message || 'Error al guardar calificación')
   }
+}
+
+const generateReport = () => {
+  toast.info('Generando reporte PDF...')
+  // In a real app, this would call a PDF service
 }
 </script>
 
@@ -70,13 +82,13 @@ const saveStudentGrades = async (student: any) => {
               <BookOpen class="h-6 w-6" />
             </div>
             <span class="text-xs font-bold px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-500 uppercase tracking-wider">
-              Paralelo {{ p.name }}
+              Paralelo {{ p.nombre }}
             </span>
           </div>
           <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors">
-            {{ p.subjects.name }}
+            {{ p.materias?.nombre }}
           </h3>
-          <p class="text-sm text-gray-500 mt-1 font-mono">{{ p.subjects.code }}</p>
+          <p class="text-sm text-gray-500 mt-1 font-mono">{{ p.materias?.codigo }}</p>
           
           <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center text-sm text-gray-600 dark:text-gray-400">
             <Users class="h-4 w-4 mr-2" />
@@ -95,10 +107,17 @@ const saveStudentGrades = async (student: any) => {
         >
           <ChevronLeft class="h-6 w-6 text-gray-500" />
         </button>
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ selectedParallel.subjects.name }}</h1>
-          <p class="text-sm text-gray-500">Paralelo {{ selectedParallel.name }} • Gestión {{ new Date().getFullYear() }}</p>
+        <div class="flex-1">
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ selectedParallel.materias?.nombre }}</h1>
+          <p class="text-sm text-gray-500">Paralelo {{ selectedParallel.nombre }} • {{ selectedParallel.periodos_academicos?.nombre }}</p>
         </div>
+        <button 
+          @click="generateReport"
+          class="flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 transition-all font-medium text-sm"
+        >
+          <FileText class="h-4 w-4 mr-2" />
+          Generar Reporte
+        </button>
       </div>
 
       <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
@@ -120,13 +139,13 @@ const saveStudentGrades = async (student: any) => {
               </tr>
               <tr v-else v-for="student in docenteController.currentStudents.value" :key="student.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
                 <td class="px-6 py-4">
-                  <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ student.profiles.full_name }}</div>
-                  <div class="text-xs text-gray-500">{{ student.profiles.email }}</div>
+                  <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ student.student_name }}</div>
+                  <div class="text-xs text-gray-500">{{ student.registro }} • {{ student.student_email }}</div>
                 </td>
                 <td class="px-6 py-4">
                   <input 
                     type="number"
-                    v-model="student.grades[0].partial_1"
+                    v-model="student.nota_primer_parcial"
                     min="0" max="100"
                     class="w-20 mx-auto block text-center py-1 bg-gray-50 dark:bg-gray-800 border-none rounded focus:ring-2 focus:ring-primary-500 text-sm font-medium"
                   />
@@ -134,7 +153,7 @@ const saveStudentGrades = async (student: any) => {
                 <td class="px-6 py-4">
                   <input 
                     type="number"
-                    v-model="student.grades[0].partial_2"
+                    v-model="student.nota_segundo_parcial"
                     min="0" max="100"
                     class="w-20 mx-auto block text-center py-1 bg-gray-50 dark:bg-gray-800 border-none rounded focus:ring-2 focus:ring-primary-500 text-sm font-medium"
                   />
@@ -142,7 +161,7 @@ const saveStudentGrades = async (student: any) => {
                 <td class="px-6 py-4">
                   <input 
                     type="number"
-                    v-model="student.grades[0].final_exam"
+                    v-model="student.nota_examen_final"
                     min="0" max="100"
                     class="w-20 mx-auto block text-center py-1 bg-gray-50 dark:bg-gray-800 border-none rounded focus:ring-2 focus:ring-primary-500 text-sm font-medium"
                   />
@@ -150,9 +169,9 @@ const saveStudentGrades = async (student: any) => {
                 <td class="px-6 py-4 text-center">
                   <span :class="[
                     'text-sm font-bold',
-                    (student.grades[0]?.average || 0) >= 51 ? 'text-green-600' : 'text-red-600'
+                    (student.promedio_final || 0) >= 51 ? 'text-green-600' : 'text-red-600'
                   ]">
-                    {{ Math.round(student.grades[0]?.average || 0) }}
+                    {{ Math.round(student.promedio_final || 0) }}
                   </span>
                 </td>
                 <td class="px-6 py-4 text-right">

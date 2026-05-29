@@ -7,6 +7,15 @@ export const useDocenteController = () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  const fetchDocenteId = async (usuarioId: string) => {
+    try {
+      return await DocenteModel.getDocenteId(usuarioId)
+    } catch (e: any) {
+      error.value = e.message
+      return null
+    }
+  }
+
   const fetchAssignedParallels = async (docenteId: string) => {
     loading.value = true
     try {
@@ -42,6 +51,7 @@ export const useDocenteController = () => {
     currentStudents,
     loading,
     error,
+    fetchDocenteId,
     fetchAssignedParallels,
     fetchParallelStudents,
     saveGrade

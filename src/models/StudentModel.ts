@@ -8,13 +8,16 @@ export const StudentModel = {
         *,
         parallels (
           *,
-          profiles (full_name)
+          usuarios (full_name)
         )
       `)
       .eq('career_id', careerId)
     
-    if (error) throw error
-    return data
+    if (error) {
+      console.error('Error fetching subjects:', error)
+      throw error
+    }
+    return data || []
   },
 
   async enroll(studentId: string, parallelId: string) {
@@ -22,9 +25,12 @@ export const StudentModel = {
       .from('enrollments')
       .insert({ student_id: studentId, parallel_id: parallelId })
       .select()
-      .single()
+      .maybeSingle()
     
-    if (error) throw error
+    if (error) {
+      console.error('Error enrolling student:', error)
+      throw error
+    }
     return data
   },
 
@@ -40,7 +46,10 @@ export const StudentModel = {
       `)
       .eq('student_id', studentId)
     
-    if (error) throw error
-    return data
+    if (error) {
+      console.error('Error fetching enrollments:', error)
+      throw error
+    }
+    return data || []
   }
 }

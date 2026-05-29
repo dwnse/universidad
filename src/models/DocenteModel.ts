@@ -1,54 +1,83 @@
 import { supabase } from './supabase'
 
 export const DocenteModel = {
-  async getAssignedParallels(docenteId: string) {
+  async getDocenteId(usuarioId: string) {
     const { data, error } = await supabase
-      .from('parallels')
-      .select(`
-        *,
-        subjects (name, code, career_id)
-      `)
-      .eq('docente_id', docenteId)
+      .from('docentes')
+      .select('id')
+      .eq('usuario_id', usuarioId)
+      .maybeSingle()
     
     if (error) throw error
-    return data
+    return data?.id
+  },
+
+  async getAssignedParallels(docenteId: string) {
+    const { data, error } = await supabase
+      .from('paralelos')
+      .select(`
+        *,
+        materias (nombre, codigo),
+        periodos_academicos (nombre)
+      `)
+      .eq('docente_id', docenteId)
+      .eq('activo', true)
+    
+    if (error) {
+      console.error('Error fetching assigned parallels:', error)
+      throw error
+    }
+    return data || []
   },
 
   async getParallelStudents(parallelId: string) {
     const { data, error } = await supabase
-      .from('enrollments')
+      .from('inscripciones')
       .select(`
-        id,
-        student_id,
-        profiles:student_id (full_name, email),
-        grades:enrollment_id (
+        *,
+        estudiantes:estudiante_id (
           id,
-          partial_1,
-          partial_2,
-          final_exam,
-          average
+          registro_universitario,
+          usuarios:usuario_id (nombres, apellidos, email)
         )
       `)
-      .eq('parallel_id', parallelId)
+      .eq('paralelo_id', parallelId)
     
-    if (error) throw error
-    return data
+    if (error) {
+      console.error('Error fetching parallel students:', error)
+      throw error
+    }
+
+    // Synthesize full_name and other fields for the UI
+    return (data || []).map((insc: any) => ({
+      ...insc,
+      student_name: `${insc.estudiantes.usuarios.nombres} ${insc.estudiantes.usuarios.apellidos}`,
+      student_email: insc.estudiantes.usuarios.email,
+      registro: insc.estudiantes.registro_universitario
+    }))
   },
 
-  async saveGrade(enrollmentId: string, grades: { partial_1: number, partial_2: number, final_exam: number }) {
-    const average = (grades.partial_1 + grades.partial_2 + grades.final_exam) / 3
+  async saveGrade(enrollmentId: string, grades: { 
+    nota_primer_parcial: number, 
+    nota_segundo_parcial: number, 
+    nota_examen_final: number 
+  }) {
+    const promedio_final = (grades.nota_primer_parcial + grades.nota_segundo_parcial + grades.nota_examen_final) / 3
     
     const { data, error } = await supabase
-      .from('grades')
-      .upsert({
-        enrollment_id: enrollmentId,
+      .from('inscripciones')
+      .update({
         ...grades,
-        average
+        promedio_final
       })
+      .eq('id', enrollmentId)
       .select()
       .single()
     
-    if (error) throw error
+    if (error) {
+      console.error('Error saving grade:', error)
+      throw error
+    }
     return data
   }
 }

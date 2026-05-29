@@ -1,4 +1,4 @@
-import{m as a}from"./index-DiP0FMJb.js";/**
+import{o as a}from"./index-qutNgf5D.js";/**
  * @license lucide-vue-next v0.395.0 - ISC
  *
  * This source code is licensed under the ISC license.
@@ -18,4 +18,4 @@ import{m as a}from"./index-DiP0FMJb.js";/**
  *
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
- */const g=(e,t)=>(r,{slots:s})=>a(h,{...r,iconNode:t,name:e},s);export{g as c};
+ */const m=(e,t)=>(r,{slots:s})=>a(h,{...r,iconNode:t,name:e},s);export{m as c};

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAdminController } from '@/controllers/AdminController'
+import AddUserModal from '../components/AddUserModal.vue'
 import { 
   Search, 
   UserPlus, 
@@ -14,16 +15,27 @@ import {
 const adminController = useAdminController()
 const searchQuery = ref('')
 const roleFilter = ref('ALL')
+const showAddUserModal = ref(false)
 
 onMounted(() => {
   adminController.fetchUsers()
 })
 
+const handleAddUser = async (userData: any) => {
+  try {
+    await adminController.createUser(userData)
+    showAddUserModal.value = false
+  } catch (error) {
+    console.error('Error creating user:', error)
+    alert('Error al crear el usuario')
+  }
+}
+
 const filteredUsers = computed(() => {
   return adminController.users.value.filter(user => {
-    const matchesSearch = user.full_name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    const matchesSearch = (user.full_name || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchesRole = roleFilter.value === 'ALL' || user.role === roleFilter.value
+    const matchesRole = roleFilter.value === 'ALL' || user.rol === roleFilter.value
     return matchesSearch && matchesRole
   })
 })
@@ -45,7 +57,10 @@ const getRoleBadgeClass = (role: string) => {
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Gestión de Usuarios</h1>
         <p class="text-gray-500 dark:text-gray-400 mt-1">Administra los roles y accesos de todo el personal y estudiantes.</p>
       </div>
-      <button class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors shadow-sm">
+      <button 
+        @click="showAddUserModal = true"
+        class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors shadow-sm"
+      >
         <UserPlus class="h-5 w-5 mr-2" />
         Nuevo Usuario
       </button>
@@ -100,7 +115,7 @@ const getRoleBadgeClass = (role: string) => {
               <td class="px-6 py-4">
                 <div class="flex items-center">
                   <div class="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold border border-primary-200 dark:border-primary-800">
-                    {{ user.full_name.charAt(0) }}
+                    {{ (user.full_name || 'U').charAt(0) }}
                   </div>
                   <div class="ml-4">
                     <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ user.full_name }}</div>
@@ -112,9 +127,9 @@ const getRoleBadgeClass = (role: string) => {
                 </div>
               </td>
               <td class="px-6 py-4">
-                <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getRoleBadgeClass(user.role)]">
+                <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium', getRoleBadgeClass(user.rol)]">
                   <Shield class="h-3 w-3 mr-1" />
-                  {{ user.role }}
+                  {{ user.rol }}
                 </span>
               </td>
               <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
@@ -143,5 +158,12 @@ const getRoleBadgeClass = (role: string) => {
         </table>
       </div>
     </div>
+
+    <!-- Add User Modal -->
+    <AddUserModal 
+      :show="showAddUserModal" 
+      @close="showAddUserModal = false"
+      @save="handleAddUser"
+    />
   </div>
 </template>

@@ -1,19 +1,22 @@
-export type UserRole = 'ADMIN' | 'DOCENTE' | 'ESTUDIANTE'
+export type UserRole = 'ADMINISTRADOR' | 'DOCENTE' | 'ESTUDIANTE'
 
 export interface Profile {
   id: string
   email: string
-  role: UserRole
-  full_name: string
-  avatar_url?: string
+  rol: UserRole
+  nombres: string
+  apellidos: string
+  foto_perfil?: string
   created_at: string
+  full_name?: string // Virtual field for UI
 }
 
 export interface Career {
   id: string
-  name: string
-  code: string
-  description?: string
+  nombre: string
+  codigo: string
+  descripcion?: string
+  activa: boolean
   created_at: string
 }
 

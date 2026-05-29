@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { AuthController } from '@/controllers/AuthController'
@@ -28,10 +28,10 @@ const authStore = useAuthStore()
 const isSidebarOpen = ref(true)
 
 const navigation = [
-  { name: 'Dashboard', href: { name: 'dashboard' }, icon: LayoutDashboard, roles: ['ADMIN', 'DOCENTE', 'ESTUDIANTE'] },
-  { name: 'Usuarios', href: { name: 'admin-users' }, icon: Users, roles: ['ADMIN'] },
-  { name: 'Carreras', href: { name: 'admin-careers' }, icon: BookOpen, roles: ['ADMIN'] },
-  { name: 'Inscripciones', href: { name: 'student-enrollment' }, icon: Calendar, roles: ['ADMIN', 'ESTUDIANTE'] },
+  { name: 'Dashboard', href: { name: 'dashboard' }, icon: LayoutDashboard, roles: ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'] },
+  { name: 'Usuarios', href: { name: 'admin-users' }, icon: Users, roles: ['ADMINISTRADOR'] },
+  { name: 'Carreras', href: { name: 'admin-careers' }, icon: BookOpen, roles: ['ADMINISTRADOR'] },
+  { name: 'Inscripciones', href: { name: 'student-enrollment' }, icon: Calendar, roles: ['ADMINISTRADOR', 'ESTUDIANTE'] },
   { name: 'Calificaciones', href: { name: 'docente-grades' }, icon: BookOpen, roles: ['DOCENTE'] },
 ]
 
@@ -44,9 +44,11 @@ const handleLogout = async () => {
   router.push({ name: 'login' })
 }
 
-const filteredNavigation = navigation.filter(item => 
-  item.roles.includes(authStore.userRole || '')
-)
+const filteredNavigation = computed(() => {
+  return navigation.filter(item => 
+    item.roles.includes(authStore.userRole || '')
+  )
+})
 </script>
 
 <template>
@@ -128,13 +130,13 @@ const filteredNavigation = navigation.filter(item =>
             <span class="absolute top-2 right-2.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900"></span>
           </button>
           
-          <div class="flex items-center space-x-3 pl-4 border-l border-gray-200 dark:border-gray-800">
+          <div v-if="authStore.profile" class="flex items-center space-x-3 pl-4 border-l border-gray-200 dark:border-gray-800">
             <div class="hidden text-right lg:block">
-              <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ authStore.profile?.full_name }}</p>
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ authStore.profile.full_name }}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400">{{ authStore.userRole }}</p>
             </div>
             <div class="h-9 w-9 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold border border-primary-200 dark:border-primary-800">
-              {{ authStore.profile?.full_name?.charAt(0) }}
+              {{ authStore.profile.full_name?.charAt(0) }}
             </div>
           </div>
         </div>

@@ -120,7 +120,7 @@ const filteredSubjects = computed(() => {
               <div class="space-y-1">
                 <div class="flex items-center text-xs font-medium text-gray-600 dark:text-gray-300">
                   <User class="h-3 w-3 mr-1.5" />
-                  {{ parallel.profiles?.full_name || 'Docente por asignar' }}
+                  {{ parallel.usuarios?.full_name || 'Docente por asignar' }}
                 </div>
                 <div class="flex items-center text-xs text-gray-500">
                   <Clock class="h-3 w-3 mr-1.5" />

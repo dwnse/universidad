@@ -2,13 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useAdminController } from '@/controllers/AdminController'
 import BaseModal from '@/views/components/BaseModal.vue'
+import SubjectsManagementModal from '../components/SubjectsManagementModal.vue'
 import { 
   BookOpen, 
   Plus, 
   GraduationCap, 
   Code, 
   MoreVertical,
-  Loader2
+  Loader2,
+  Pencil,
+  Trash2
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
 
@@ -16,28 +19,77 @@ const adminController = useAdminController()
 const toast = useToast()
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
+const editingCareer = ref<any>(null)
+const activeDropdown = ref<string | null>(null)
+const selectedCareerForSubjects = ref<any>(null)
+const isSubjectsModalOpen = ref(false)
 
-const newCareer = ref({
-  name: '',
-  code: '',
-  description: ''
+const openSubjectsModal = (career: any) => {
+  selectedCareerForSubjects.value = career
+  isSubjectsModalOpen.value = true
+}
+
+const careerForm = ref({
+  nombre: '',
+  codigo: '',
+  descripcion: ''
 })
 
 onMounted(() => {
   adminController.fetchCareers()
+  window.addEventListener('click', () => activeDropdown.value = null)
 })
+
+const openAddModal = () => {
+  editingCareer.value = null
+  careerForm.value = { nombre: '', codigo: '', descripcion: '' }
+  isModalOpen.value = true
+}
+
+const openEditModal = (career: any) => {
+  editingCareer.value = career
+  careerForm.value = { 
+    nombre: career.nombre, 
+    codigo: career.codigo, 
+    descripcion: career.descripcion || '' 
+  }
+  isModalOpen.value = true
+  activeDropdown.value = null
+}
+
+const toggleDropdown = (e: Event, id: string) => {
+  e.stopPropagation()
+  activeDropdown.value = activeDropdown.value === id ? null : id
+}
 
 const handleSubmit = async () => {
   isSubmitting.value = true
   try {
-    await adminController.createCareer(newCareer.value)
-    toast.success('Carrera creada exitosamente')
+    if (editingCareer.value) {
+      await adminController.updateCareer(editingCareer.value.id, careerForm.value)
+      toast.success('Carrera actualizada exitosamente')
+    } else {
+      await adminController.createCareer(careerForm.value)
+      toast.success('Carrera creada exitosamente')
+    }
     isModalOpen.value = false
-    newCareer.value = { name: '', code: '', description: '' }
+    careerForm.value = { nombre: '', codigo: '', descripcion: '' }
   } catch (error: any) {
-    toast.error(error.message || 'Error al crear la carrera')
+    toast.error(error.message || 'Error al procesar la carrera')
   } finally {
     isSubmitting.value = false
+  }
+}
+
+const handleDelete = async (career: any) => {
+  activeDropdown.value = null
+  if (confirm(`¿Estás seguro de que deseas eliminar la carrera ${career.nombre}?`)) {
+    try {
+      await adminController.deleteCareer(career.id)
+      toast.success('Carrera eliminada')
+    } catch (error: any) {
+      toast.error(error.message || 'Error al eliminar')
+    }
   }
 }
 </script>
@@ -50,7 +102,7 @@ const handleSubmit = async () => {
         <p class="text-gray-500 dark:text-gray-400 mt-1">Gestiona la oferta académica de la institución.</p>
       </div>
       <button 
-        @click="isModalOpen = true"
+        @click="openAddModal"
         class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors shadow-sm"
       >
         <Plus class="h-5 w-5 mr-2" />
@@ -69,27 +121,53 @@ const handleSubmit = async () => {
       <div 
         v-for="career in adminController.careers.value" 
         :key="career.id"
-        class="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm hover:border-primary-500/50 transition-all group"
+        class="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm hover:border-primary-500/50 transition-all group relative"
       >
         <div class="flex items-start justify-between">
           <div class="p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-primary-600 dark:text-primary-400">
             <GraduationCap class="h-6 w-6" />
           </div>
-          <button class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-            <MoreVertical class="h-5 w-5" />
-          </button>
+          <div class="relative">
+            <button 
+              @click="toggleDropdown($event, career.id)"
+              class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <MoreVertical class="h-5 w-5" />
+            </button>
+            
+            <!-- Dropdown -->
+            <div 
+              v-if="activeDropdown === career.id"
+              class="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 z-10 py-1 overflow-hidden"
+            >
+              <button 
+                @click="openEditModal(career)"
+                class="w-full flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Pencil class="h-4 w-4 mr-2 text-blue-500" />
+                Editar
+              </button>
+              <button 
+                @click="handleDelete(career)"
+                class="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <Trash2 class="h-4 w-4 mr-2" />
+                Eliminar
+              </button>
+            </div>
+          </div>
         </div>
         
         <div class="mt-4">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors">
-            {{ career.name }}
+            {{ career.nombre }}
           </h3>
           <div class="flex items-center mt-2 text-sm text-gray-500">
             <Code class="h-4 w-4 mr-2" />
-            Código: <span class="font-mono ml-1 font-semibold text-gray-700 dark:text-gray-300">{{ career.code }}</span>
+            Código: <span class="font-mono ml-1 font-semibold text-gray-700 dark:text-gray-300">{{ career.codigo }}</span>
           </div>
-          <p v-if="career.description" class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-            {{ career.description }}
+          <p v-if="career.descripcion" class="mt-3 text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+            {{ career.descripcion }}
           </p>
         </div>
 
@@ -97,7 +175,10 @@ const handleSubmit = async () => {
           <span class="text-xs font-medium text-gray-400">
             Creado: {{ new Date(career.created_at).toLocaleDateString() }}
           </span>
-          <button class="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors">
+          <button 
+            @click="openSubjectsModal(career)"
+            class="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+          >
             Ver materias
           </button>
         </div>
@@ -113,13 +194,13 @@ const handleSubmit = async () => {
       </div>
     </div>
 
-    <!-- Create Career Modal -->
-    <BaseModal :show="isModalOpen" title="Nueva Carrera" @close="isModalOpen = false">
+    <!-- Create/Edit Career Modal -->
+    <BaseModal :show="isModalOpen" :title="editingCareer ? 'Editar Carrera' : 'Nueva Carrera'" @close="isModalOpen = false">
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre de la Carrera</label>
           <input 
-            v-model="newCareer.name"
+            v-model="careerForm.nombre"
             type="text" 
             required
             class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-lg focus:ring-2 focus:ring-primary-500"
@@ -129,7 +210,7 @@ const handleSubmit = async () => {
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Código</label>
           <input 
-            v-model="newCareer.code"
+            v-model="careerForm.codigo"
             type="text" 
             required
             class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-lg focus:ring-2 focus:ring-primary-500 font-mono"
@@ -139,7 +220,7 @@ const handleSubmit = async () => {
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción (Opcional)</label>
           <textarea 
-            v-model="newCareer.description"
+            v-model="careerForm.descripcion"
             rows="3"
             class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-lg focus:ring-2 focus:ring-primary-500"
             placeholder="Breve descripción de la carrera..."
@@ -160,10 +241,17 @@ const handleSubmit = async () => {
             class="inline-flex items-center px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-70 shadow-md shadow-primary-500/20"
           >
             <Loader2 v-if="isSubmitting" class="animate-spin h-5 w-5 mr-2" />
-            Guardar Carrera
+            {{ editingCareer ? 'Guardar Cambios' : 'Crear Carrera' }}
           </button>
         </div>
       </form>
     </BaseModal>
+
+    <!-- Subjects Management Modal -->
+    <SubjectsManagementModal 
+      :show="isSubjectsModalOpen" 
+      :career="selectedCareerForSubjects"
+      @close="isSubjectsModalOpen = false"
+    />
   </div>
 </template>
