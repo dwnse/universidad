@@ -1,4 +1,5 @@
-import { supabase } from './supabase'
+import { createClient } from '@supabase/supabase-js'
+import { supabase, supabaseUrl, supabaseAnonKey } from './supabase'
 import type { Profile, Career } from './types'
 
 export const AdminModel = {
@@ -168,19 +169,63 @@ export const AdminModel = {
   },
 
   async createUser(user: any) {
+    // Usamos un cliente temporal para registrar al nuevo usuario en Supabase Auth
+    // sin cerrar la sesión del administrador actual.
+    const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
+      }
+    })
+
+    const { data: authData, error: authError } = await tempSupabase.auth.signUp({
+      email: user.email,
+      password: user.password_hash, // Contraseña temporal enviada desde el modal
+      options: {
+        data: {
+          nombres: user.nombres,
+          apellidos: user.apellidos,
+          rol: user.rol
+        }
+      }
+    })
+
+    if (authError) {
+      console.error('Error en Supabase Auth signUp:', authError)
+      throw authError
+    }
+
+    if (!authData.user) {
+      throw new Error('No se pudo crear el usuario en Supabase Auth')
+    }
+
+    // Ahora insertamos en la tabla pública usuarios usando el ID de Auth
+    const dbUser = {
+      id: authData.user.id,
+      nombres: user.nombres,
+      apellidos: user.apellidos,
+      email: user.email,
+      rol: user.rol,
+      ci: user.ci,
+      telefono: user.telefono,
+      password_hash: 'managed_by_supabase_auth',
+      estado: user.estado || 'ACTIVO'
+    }
+
     const { data, error } = await supabase
       .from('usuarios')
-      .insert(user)
+      .insert(dbUser)
       .select()
       .single()
     
     if (error) {
-      console.error('Error creating user:', error)
+      console.error('Error al crear perfil público:', error)
       throw error
     }
 
     if (data) {
-      // Create specialized record based on role
+      // Crear registros especializados según el rol
       if (data.rol === 'DOCENTE') {
         await supabase.from('docentes').insert({
           usuario_id: data.id,
