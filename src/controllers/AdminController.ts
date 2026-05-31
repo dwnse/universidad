@@ -7,6 +7,10 @@ export const useAdminController = () => {
   const careers = ref<Career[]>([])
   const careerSubjects = ref<any[]>([])
   const allSubjects = ref<any[]>([])
+  const paralelos = ref<any[]>([])
+  const aulas = ref<any[]>([])
+  const docentes = ref<any[]>([])
+  const periodos = ref<any[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -127,6 +131,36 @@ export const useAdminController = () => {
     }
   }
 
+  // Prerrequisitos
+  const fetchPrerequisites = async (materiaId: string) => {
+    try {
+      return await AdminModel.getPrerequisites(materiaId)
+    } catch (e: any) {
+      error.value = e.message
+      return []
+    }
+  }
+
+  const addPrerequisite = async (materiaId: string, prerequisiteId: string) => {
+    try {
+      await AdminModel.addPrerequisite(materiaId, prerequisiteId)
+      return true
+    } catch (e: any) {
+      error.value = e.message
+      return false
+    }
+  }
+
+  const removePrerequisite = async (id: string) => {
+    try {
+      await AdminModel.removePrerequisite(id)
+      return true
+    } catch (e: any) {
+      error.value = e.message
+      return false
+    }
+  }
+
   const createUser = async (userData: any) => {
     loading.value = true
     try {
@@ -140,17 +174,172 @@ export const useAdminController = () => {
     }
   }
 
+  const fetchParalelos = async () => {
+    loading.value = true
+    try {
+      paralelos.value = await AdminModel.getParalelos()
+    } catch (e: any) {
+      error.value = e.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const fetchAuxiliarData = async () => {
+    try {
+      const [a, d, p] = await Promise.all([
+        AdminModel.getAulas(),
+        AdminModel.getDocentes(),
+        AdminModel.getPeriodos()
+      ])
+      aulas.value = a
+      docentes.value = d
+      periodos.value = p
+    } catch (e: any) {
+      error.value = e.message
+    }
+  }
+
+  const createAula = async (data: any) => {
+    try {
+      await AdminModel.createAula(data)
+      await fetchAuxiliarData()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  const deleteAula = async (id: string) => {
+    try {
+      await AdminModel.deleteAula(id)
+      await fetchAuxiliarData()
+    } catch (e: any) {
+      error.value = e.message
+    }
+  }
+
+  const updateAula = async (id: string, data: any) => {
+    try {
+      await AdminModel.updateAula(id, data)
+      await fetchAuxiliarData()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  const createPeriodo = async (data: any) => {
+    try {
+      await AdminModel.createPeriodo(data)
+      await fetchAuxiliarData()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  const deletePeriodo = async (id: string) => {
+    try {
+      await AdminModel.deletePeriodo(id)
+      await fetchAuxiliarData()
+    } catch (e: any) {
+      error.value = e.message
+    }
+  }
+
+  const closePeriod = async (id: string) => {
+    loading.value = true
+    try {
+      await AdminModel.closePeriod(id)
+      await fetchAuxiliarData()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Calendario
+  const calendarEvents = ref<any[]>([])
+  const fetchCalendarEvents = async () => {
+    loading.value = true
+    try {
+      calendarEvents.value = await AdminModel.getCalendarEvents()
+    } catch (e: any) {
+      error.value = e.message
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const createCalendarEvent = async (data: any) => {
+    try {
+      await AdminModel.createCalendarEvent(data)
+      await fetchCalendarEvents()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  const deleteCalendarEvent = async (id: string) => {
+    try {
+      await AdminModel.deleteCalendarEvent(id)
+      await fetchCalendarEvents()
+    } catch (e: any) {
+      error.value = e.message
+    }
+  }
+
+  const createParalelo = async (data: any) => {
+    try {
+      await AdminModel.createParalelo(data)
+      await fetchParalelos()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  const updateParalelo = async (id: string, data: any) => {
+    try {
+      await AdminModel.updateParalelo(id, data)
+      await fetchParalelos()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    }
+  }
+
+  const deleteParalelo = async (id: string) => {
+    try {
+      await AdminModel.deleteParalelo(id)
+      await fetchParalelos()
+    } catch (e: any) {
+      error.value = e.message
+      throw e
+    }
+  }
+
   return {
     users,
     careers,
     careerSubjects,
     allSubjects,
+    paralelos,
+    aulas,
+    docentes,
+    periodos,
     loading,
     error,
     fetchUsers,
     fetchCareers,
     fetchAllSubjects,
     fetchSubjectsByCareer,
+    fetchParalelos,
+    fetchAuxiliarData,
     createSubject,
     linkSubjectToCareer,
     updateSubject,
@@ -159,6 +348,22 @@ export const useAdminController = () => {
     createCareer,
     updateCareer,
     deleteCareer,
-    createUser
+    createUser,
+    createParalelo,
+    updateParalelo,
+    deleteParalelo,
+    createAula,
+    updateAula,
+    deleteAula,
+    createPeriodo,
+    deletePeriodo,
+    closePeriod,
+    fetchPrerequisites,
+    addPrerequisite,
+    removePrerequisite,
+    calendarEvents,
+    fetchCalendarEvents,
+    createCalendarEvent,
+    deleteCalendarEvent
   }
 }

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import BaseModal from './BaseModal.vue'
-import { User, Mail, Shield, CreditCard, Phone, Lock } from 'lucide-vue-next'
+import { User, Mail, Shield, CreditCard, Phone, Lock, BookOpen } from 'lucide-vue-next'
+import { useAdminController } from '@/controllers/AdminController'
 
 const props = defineProps<{
   show: boolean
 }>()
 
 const emit = defineEmits(['close', 'save'])
+const adminController = useAdminController()
 
 const formData = ref({
   nombres: '',
@@ -16,10 +18,15 @@ const formData = ref({
   rol: 'ESTUDIANTE',
   ci: '',
   telefono: '',
-  password: ''
+  password: '',
+  carrera_id: ''
 })
 
 const loading = ref(false)
+
+onMounted(async () => {
+  await adminController.fetchCareers()
+})
 
 const handleSubmit = async () => {
   loading.value = true
@@ -27,6 +34,11 @@ const handleSubmit = async () => {
     // Basic validation
     if (!formData.value.email || !formData.value.nombres || !formData.value.password) {
       alert('Por favor complete los campos obligatorios')
+      return
+    }
+
+    if (formData.value.rol === 'ESTUDIANTE' && !formData.value.carrera_id) {
+      alert('Debe seleccionar una carrera para el estudiante')
       return
     }
 
@@ -38,7 +50,8 @@ const handleSubmit = async () => {
       ci: formData.value.ci,
       telefono: formData.value.telefono,
       password_hash: formData.value.password, // Following schema requirement
-      estado: 'ACTIVO'
+      estado: 'ACTIVO',
+      carrera_id: formData.value.carrera_id
     }
 
     emit('save', userData)
@@ -58,7 +71,8 @@ const resetForm = () => {
     rol: 'ESTUDIANTE',
     ci: '',
     telefono: '',
-    password: ''
+    password: '',
+    carrera_id: ''
   }
 }
 </script>
@@ -174,6 +188,24 @@ const resetForm = () => {
               placeholder="••••••••"
             />
           </div>
+        </div>
+      </div>
+
+      <!-- Selección de Carrera (Solo para Estudiantes) -->
+      <div v-if="formData.rol === 'ESTUDIANTE'" class="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Carrera Académica *</label>
+        <div class="relative">
+          <BookOpen class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <select 
+            v-model="formData.carrera_id"
+            required
+            class="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none appearance-none"
+          >
+            <option value="" disabled>Seleccionar carrera...</option>
+            <option v-for="career in adminController.careers.value" :key="career.id" :value="career.id">
+              {{ career.nombre }} ({{ career.codigo }})
+            </option>
+          </select>
         </div>
       </div>
 

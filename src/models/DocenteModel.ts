@@ -61,23 +61,55 @@ export const DocenteModel = {
     nota_primer_parcial: number, 
     nota_segundo_parcial: number, 
     nota_examen_final: number 
-  }) {
-    const promedio_final = (grades.nota_primer_parcial + grades.nota_segundo_parcial + grades.nota_examen_final) / 3
-    
+  }, usuarioId: string) {
+    // 1. Obtener datos actuales para auditoría y el ID del estudiante para notificar
+    const { data: currentGrade } = await supabase
+      .from('inscripciones')
+      .select('*, estudiantes(usuario_id), paralelos(materias(nombre))')
+      .eq('id', enrollmentId)
+      .single()
+
+    // 2. No calculamos el promedio aquí, dejamos que la DB lo haga mediante su DEFAULT/GENERATED
+    // 3. Actualizar tabla inscripciones
     const { data, error } = await supabase
       .from('inscripciones')
       .update({
-        ...grades,
-        promedio_final
+        nota_primer_parcial: grades.nota_primer_parcial,
+        nota_segundo_parcial: grades.nota_segundo_parcial,
+        nota_examen_final: grades.nota_examen_final
       })
       .eq('id', enrollmentId)
       .select()
       .single()
     
-    if (error) {
-      console.error('Error saving grade:', error)
-      throw error
+    if (error) throw error
+
+    // 4. Registrar en tabla AUDITORIA
+    await supabase.from('auditoria').insert({
+      usuario_id: usuarioId,
+      tabla: 'inscripciones',
+      accion: 'UPDATE_GRADE',
+      descripcion: `Cambio de notas - ID: ${enrollmentId}. P1: ${grades.nota_primer_parcial}, P2: ${grades.nota_segundo_parcial}, EF: ${grades.nota_examen_final}`
+    })
+
+    // 5. Registrar en tabla LOGS_SISTEMA
+    await supabase.from('logs_sistema').insert({
+      usuario_id: usuarioId,
+      accion: `Docente actualizó notas del paralelo ${currentGrade?.paralelos?.materias?.nombre}`,
+      ip_address: '127.0.0.1' 
+    })
+
+    // 6. Enviar NOTIFICACION al estudiante (RF10)
+    if (currentGrade?.estudiantes?.usuario_id) {
+      await supabase.from('notificaciones').insert({
+        usuario_id: currentGrade.estudiantes.usuario_id,
+        tipo: 'INFO', 
+        titulo: 'Calificación Actualizada',
+        mensaje: `Tu nota en la materia ${currentGrade.paralelos.nombre} ha sido actualizada. Revisa tu panel para ver el nuevo promedio.`,
+        leida: false
+      })
     }
+
     return data
   }
 }

@@ -14,6 +14,8 @@ import {
   Trash2
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
+import { ReportController } from '@/controllers/ReportController'
+import { FileText } from 'lucide-vue-next'
 
 const adminController = useAdminController()
 const toast = useToast()
@@ -23,6 +25,20 @@ const editingCareer = ref<any>(null)
 const activeDropdown = ref<string | null>(null)
 const selectedCareerForSubjects = ref<any>(null)
 const isSubjectsModalOpen = ref(false)
+const isGeneratingReport = ref(false)
+
+const handleDownloadReport = async (career: any) => {
+  activeDropdown.value = null
+  isGeneratingReport.value = true
+  try {
+    await ReportController.materiasPorCarrera(career.id, career.nombre)
+    toast.success('Reporte generado correctamente')
+  } catch (error: any) {
+    toast.error('Error al generar reporte: ' + error.message)
+  } finally {
+    isGeneratingReport.value = false
+  }
+}
 
 const openSubjectsModal = (career: any) => {
   selectedCareerForSubjects.value = career
@@ -140,6 +156,14 @@ const handleDelete = async (career: any) => {
               v-if="activeDropdown === career.id"
               class="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 z-10 py-1 overflow-hidden"
             >
+              <button 
+                @click="handleDownloadReport(career)"
+                :disabled="isGeneratingReport"
+                class="w-full flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+              >
+                <FileText class="h-4 w-4 mr-2 text-primary-500" />
+                Descargar Materias
+              </button>
               <button 
                 @click="openEditModal(career)"
                 class="w-full flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"

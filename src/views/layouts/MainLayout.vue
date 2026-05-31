@@ -4,6 +4,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { AuthController } from '@/controllers/AuthController'
 import { useDark, useToggle } from '@vueuse/core'
+import { useNotificationController } from '@/controllers/NotificationController'
+import { onMounted, onUnmounted } from 'vue'
 import { 
   LayoutDashboard, 
   Users, 
@@ -17,7 +19,12 @@ import {
   Search,
   ChevronDown,
   Sun,
-  Moon
+  Moon,
+  FileText,
+  User,
+  Check,
+  BarChart3,
+  ShieldCheck
 } from 'lucide-vue-next'
 
 const isDark = useDark()
@@ -25,15 +32,35 @@ const toggleDark = useToggle(isDark)
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotificationController()
+
 const isSidebarOpen = ref(true)
+const isNotificationsOpen = ref(false)
+const isUserMenuOpen = ref(false)
 
 const navigation = [
   { name: 'Dashboard', href: { name: 'dashboard' }, icon: LayoutDashboard, roles: ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'] },
   { name: 'Usuarios', href: { name: 'admin-users' }, icon: Users, roles: ['ADMINISTRADOR'] },
   { name: 'Carreras', href: { name: 'admin-careers' }, icon: BookOpen, roles: ['ADMINISTRADOR'] },
+  { name: 'Paralelos', href: { name: 'admin-parallels' }, icon: Calendar, roles: ['ADMINISTRADOR'] },
+  { name: 'Reportes', href: { name: 'admin-reports' }, icon: BarChart3, roles: ['ADMINISTRADOR'] },
+  { name: 'Calendario', href: { name: 'admin-calendar' }, icon: Calendar, roles: ['ADMINISTRADOR'] },
+  { name: 'Configuración', href: { name: 'admin-config' }, icon: Settings, roles: ['ADMINISTRADOR'] },
   { name: 'Inscripciones', href: { name: 'student-enrollment' }, icon: Calendar, roles: ['ADMINISTRADOR', 'ESTUDIANTE'] },
+  { name: 'Mis Notas', href: { name: 'student-grades' }, icon: FileText, roles: ['ESTUDIANTE'] },
   { name: 'Calificaciones', href: { name: 'docente-grades' }, icon: BookOpen, roles: ['DOCENTE'] },
+  { name: 'Mis Reportes', href: { name: 'docente-reports' }, icon: BarChart3, roles: ['DOCENTE'] },
+  { name: 'Mi Perfil', href: { name: 'profile' }, icon: User, roles: ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'] },
 ]
+
+onMounted(() => {
+  if (authStore.profile?.id) {
+    fetchNotifications(authStore.profile.id)
+    // Polling simple para notificaciones cada 30s
+    const interval = setInterval(() => fetchNotifications(authStore.profile!.id), 30000)
+    onUnmounted(() => clearInterval(interval))
+  }
+})
 
 const toggleSidebar = () => {
   isSidebarOpen.value = !isSidebarOpen.value
@@ -125,10 +152,58 @@ const filteredNavigation = computed(() => {
             <Moon v-else class="h-5 w-5" />
           </button>
 
-          <button class="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg relative">
-            <Bell class="h-5 w-5" />
-            <span class="absolute top-2 right-2.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900"></span>
-          </button>
+          <div class="relative">
+            <button 
+              @click="isNotificationsOpen = !isNotificationsOpen"
+              class="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg relative"
+            >
+              <Bell class="h-5 w-5" />
+              <span v-if="unreadCount > 0" class="absolute top-2 right-2.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900"></span>
+            </button>
+
+            <!-- Notifications Dropdown -->
+            <div v-if="isNotificationsOpen" class="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div class="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50">
+                <h3 class="font-bold text-gray-900 dark:text-white">Notificaciones</h3>
+                <button 
+                  v-if="unreadCount > 0"
+                  @click="markAllAsRead(authStore.profile!.id)"
+                  class="text-xs font-semibold text-primary-600 hover:text-primary-700"
+                >
+                  Marcar todo como leído
+                </button>
+              </div>
+              <div class="max-h-[400px] overflow-y-auto">
+                <div v-if="notifications.length === 0" class="p-8 text-center">
+                  <Bell class="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p class="text-sm text-gray-500">No tienes notificaciones</p>
+                </div>
+                <div 
+                  v-for="n in notifications" 
+                  :key="n.id"
+                  @click="markAsRead(n.id)"
+                  :class="[
+                    'p-4 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors',
+                    n.leida ? 'opacity-60' : 'bg-primary-50/30 dark:bg-primary-900/10'
+                  ]"
+                >
+                  <div class="flex gap-3">
+                    <div :class="[
+                      'mt-1 p-1.5 rounded-lg flex-shrink-0',
+                      n.tipo === 'ALERTA' ? 'bg-red-100 text-red-600' : 'bg-primary-100 text-primary-600'
+                    ]">
+                      <Bell class="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <h4 class="text-sm font-bold text-gray-900 dark:text-white line-clamp-1">{{ n.titulo }}</h4>
+                      <p class="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">{{ n.mensaje }}</p>
+                      <span class="text-[10px] text-gray-400 mt-2 block">{{ new Date(n.fecha_envio).toLocaleString() }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
           
           <div v-if="authStore.profile" class="flex items-center space-x-3 pl-4 border-l border-gray-200 dark:border-gray-800">
             <div class="hidden text-right lg:block">

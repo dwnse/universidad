@@ -13,40 +13,60 @@ import {
   ChevronRight
 } from 'lucide-vue-next'
 import { useToast } from 'vue-toastification'
+import { StudentModel } from '@/models/StudentModel'
+import EnrollmentConfirmationModal from '../components/EnrollmentConfirmationModal.vue'
 
 const authStore = useAuthStore()
 const studentController = useStudentController()
 const toast = useToast()
 const searchQuery = ref('')
 
-// Para fines de demo, usamos un careerId fijo o del perfil si existiera
-const careerId = 'demo-career-id' 
+const showConfirmModal = ref(false)
+const selectedSubject = ref<any>(null)
+const selectedParallel = ref<any>(null)
 
 onMounted(async () => {
-  await studentController.fetchAvailableSubjects(careerId)
   if (authStore.profile?.id) {
-    await studentController.fetchMyEnrollments(authStore.profile.id)
+    await studentController.init(authStore.profile.id)
+    if (studentController.studentId.value) {
+      // Obtener la carrera real del estudiante
+      const cId = await StudentModel.getStudentCareer(studentController.studentId.value)
+      if (cId) {
+        await studentController.fetchAvailableSubjects(cId)
+        await studentController.fetchMyEnrollments(studentController.studentId.value)
+      } else {
+        toast.error('No tienes una carrera asignada')
+      }
+    }
   }
 })
 
-const isEnrolled = (subjectId: string) => {
-  return studentController.enrollments.value?.some((e: any) => e.parallels.subject_id === subjectId)
+const isEnrolled = (materiaId: string) => {
+  return studentController.enrollments.value?.some((e: any) => e.paralelos?.materias?.id === materiaId || e.paralelos?.materia_id === materiaId)
 }
 
-const handleEnroll = async (parallelId: string) => {
-  if (!authStore.profile?.id) return
-  try {
-    await studentController.enroll(authStore.profile.id, parallelId)
+const openConfirmModal = (subject: any, parallel: any) => {
+  selectedSubject.value = subject
+  selectedParallel.value = parallel
+  showConfirmModal.value = true
+}
+
+const handleEnroll = async () => {
+  if (!studentController.studentId.value || !selectedParallel.value) return
+  
+  const success = await studentController.enroll(studentController.studentId.value, selectedParallel.value.id)
+  if (success) {
     toast.success('Inscripción realizada correctamente')
-  } catch (error: any) {
-    toast.error(error.message || 'Error al inscribirse')
+    showConfirmModal.value = false
+  } else {
+    toast.error(studentController.error.value || 'Error al inscribirse')
   }
 }
 
 const filteredSubjects = computed(() => {
   return studentController.subjects.value.filter((s: any) => 
-    s.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    s.code.toLowerCase().includes(searchQuery.value.toLowerCase())
+    s.nombre.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    s.codigo.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
 </script>
@@ -60,7 +80,7 @@ const filteredSubjects = computed(() => {
       </div>
       <div class="flex items-center px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800/50">
         <Info class="h-5 w-5 mr-2" />
-        <span class="text-sm font-medium">Máximo 6 materias por periodo</span>
+        <span class="text-sm font-medium">Inscripción habilitada</span>
       </div>
     </div>
 
@@ -95,41 +115,36 @@ const filteredSubjects = computed(() => {
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ subject.name }}</h3>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ subject.nombre }}</h3>
                 <span v-if="isEnrolled(subject.id)" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                   INSCRITO
                 </span>
               </div>
               <p class="text-sm text-gray-500 dark:text-gray-400 font-mono mt-0.5">
-                {{ subject.code }} • Semestre {{ subject.semester }} • {{ subject.credits }} Créditos
+                {{ subject.codigo }} • Semestre {{ subject.semestre }} • {{ subject.creditos }} Créditos
               </p>
             </div>
           </div>
           
           <div v-if="!isEnrolled(subject.id)" class="flex flex-wrap gap-2">
             <div 
-              v-for="parallel in subject.parallels" 
+              v-for="parallel in subject.paralelos" 
               :key="parallel.id"
               class="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800 hover:border-primary-500 transition-colors cursor-pointer group"
-              @click="handleEnroll(parallel.id)"
+              @click="openConfirmModal(subject, parallel)"
             >
               <div class="text-center border-r border-gray-200 dark:border-gray-700 pr-4">
                 <span class="block text-xs font-bold text-gray-400 uppercase">Paralelo</span>
-                <span class="text-lg font-black text-primary-600">{{ parallel.name }}</span>
+                <span class="text-lg font-black text-primary-600">{{ parallel.nombre }}</span>
               </div>
               <div class="space-y-1">
                 <div class="flex items-center text-xs font-medium text-gray-600 dark:text-gray-300">
                   <User class="h-3 w-3 mr-1.5" />
-                  {{ parallel.usuarios?.full_name || 'Docente por asignar' }}
+                  {{ parallel.docentes?.usuarios ? `${parallel.docentes.usuarios.nombres} ${parallel.docentes.usuarios.apellidos}` : 'Docente por asignar' }}
                 </div>
                 <div class="flex items-center text-xs text-gray-500">
                   <Clock class="h-3 w-3 mr-1.5" />
-                  {{ parallel.schedule }} ({{ parallel.turn }})
-                </div>
-                <div class="flex items-center text-xs text-gray-500">
-                  <div class="flex gap-1">
-                    <span v-for="day in parallel.days" :key="day" class="px-1 bg-gray-200 dark:bg-gray-700 rounded-sm text-[10px]">{{ day }}</span>
-                  </div>
+                  {{ parallel.horario_inicio }} - {{ parallel.horario_fin }} ({{ parallel.turno }})
                 </div>
               </div>
               <div class="pl-4">
@@ -137,9 +152,12 @@ const filteredSubjects = computed(() => {
                   <ChevronRight class="h-5 w-5" />
                 </div>
                 <div class="text-[10px] font-bold text-gray-400 mt-1 group-hover:hidden text-center">
-                  {{ parallel.capacity - parallel.enrolled_count }} CUPOS
+                  {{ parallel.cupo_maximo - (parallel.cupo_actual || 0) }} CUPOS
                 </div>
               </div>
+            </div>
+            <div v-if="!subject.paralelos || subject.paralelos.length === 0" class="text-sm text-gray-400 italic">
+              No hay paralelos habilitados
             </div>
           </div>
           
@@ -155,5 +173,15 @@ const filteredSubjects = computed(() => {
         <p class="text-gray-500 dark:text-gray-400 font-medium">No se encontraron materias disponibles</p>
       </div>
     </div>
+
+    <!-- Modal de Confirmación -->
+    <EnrollmentConfirmationModal 
+      :show="showConfirmModal"
+      :subject="selectedSubject"
+      :parallel="selectedParallel"
+      :loading="studentController.loading.value"
+      @close="showConfirmModal = false"
+      @confirm="handleEnroll"
+    />
   </div>
 </template>

@@ -32,16 +32,58 @@ const routes: RouteRecordRaw[] = [
         meta: { roles: ['ADMINISTRADOR'] }
       },
       {
+        path: 'admin/parallels',
+        name: 'admin-parallels',
+        component: () => import('@/views/pages/ParallelsPage.vue'),
+        meta: { roles: ['ADMINISTRADOR'] }
+      },
+      {
+        path: 'admin/config',
+        name: 'admin-config',
+        component: () => import('@/views/pages/AcademicConfigurationPage.vue'),
+        meta: { roles: ['ADMINISTRADOR'] }
+      },
+      {
+        path: 'admin/reports',
+        name: 'admin-reports',
+        component: () => import('@/views/pages/ReportsPage.vue'),
+        meta: { roles: ['ADMINISTRADOR'] }
+      },
+      {
+        path: 'admin/calendar',
+        name: 'admin-calendar',
+        component: () => import('@/views/pages/CalendarManagementPage.vue'),
+        meta: { roles: ['ADMINISTRADOR'] }
+      },
+      {
         path: 'student/enrollment',
         name: 'student-enrollment',
         component: () => import('@/views/pages/EnrollmentPage.vue'),
         meta: { roles: ['ESTUDIANTE', 'ADMINISTRADOR'] }
       },
       {
+        path: 'student/grades',
+        name: 'student-grades',
+        component: () => import('@/views/pages/MyGradesPage.vue'),
+        meta: { roles: ['ESTUDIANTE'] }
+      },
+      {
         path: 'docente/grades',
         name: 'docente-grades',
         component: () => import('@/views/pages/GradesEntryPage.vue'),
         meta: { roles: ['DOCENTE'] }
+      },
+      {
+        path: 'docente/reports',
+        name: 'docente-reports',
+        component: () => import('@/views/pages/DocenteReportsPage.vue'),
+        meta: { roles: ['DOCENTE'] }
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('@/views/pages/ProfilePage.vue'),
+        meta: { roles: ['ADMINISTRADOR', 'DOCENTE', 'ESTUDIANTE'] }
       }
     ]
   }

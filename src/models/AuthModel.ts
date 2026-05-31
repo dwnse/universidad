@@ -92,5 +92,22 @@ export const AuthModel = {
   async signOut() {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+  },
+
+  async logSystemAction(userId: string, action: string) {
+    try {
+      // Intentamos obtener la IP pública de forma sencilla
+      const ipResponse = await fetch('https://api.ipify.org?format=json').catch(() => null)
+      const ipData = ipResponse ? await ipResponse.json() : { ip: 'Unknown' }
+      
+      await supabase.from('logs_sistema').insert({
+        usuario_id: userId,
+        accion: action,
+        ip_address: ipData.ip,
+        created_at: new Date().toISOString()
+      })
+    } catch (e) {
+      console.error('Error logging system action:', e)
+    }
   }
 }

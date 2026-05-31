@@ -38,11 +38,12 @@ export const useDocenteController = () => {
     }
   }
 
-  const saveGrade = async (enrollmentId: string, grades: any) => {
+  const saveGrade = async (enrollmentId: string, grades: any, usuarioId?: string) => {
     try {
-      await DocenteModel.saveGrade(enrollmentId, grades)
+      await DocenteModel.saveGrade(enrollmentId, grades, usuarioId)
     } catch (e: any) {
       error.value = e.message
+      throw e
     }
   }
 
